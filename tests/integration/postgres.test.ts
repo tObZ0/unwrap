@@ -60,3 +60,19 @@ describe.skipIf(!url)("PostgresStore on a real database", () => {
     expect(results.filter((r) => r.allowed).length).toBe(4);
   });
 });
+
+describe.skipIf(!url)("automatic migrations", () => {
+  it("create the schema on an empty database and are idempotent under concurrency", async () => {
+    const admin = new pg.Client({ connectionString: url });
+    await admin.connect();
+    await admin.query("DROP SCHEMA IF EXISTS automig CASCADE; CREATE SCHEMA automig");
+    await admin.end();
+    const pool = new pg.Pool({ connectionString: url, options: "-c search_path=automig" });
+    const { migrate } = await import("@/lib/server/store");
+    const results = await Promise.all([migrate(pool), migrate(pool), migrate(pool)]);
+    expect(results.flat()).toEqual(["001_init.sql"]);
+    const t = await pool.query("SELECT count(*)::int AS n FROM information_schema.tables WHERE table_schema = 'automig'");
+    expect(t.rows[0].n).toBe(5);
+    await pool.end();
+  });
+});

@@ -96,3 +96,13 @@ describe("SSRF protection", () => {
     await expect(safeFetch("https://sourcify.dev/server/v2", { maxBytes: 100 })).rejects.toMatchObject({ code: "PAYLOAD_TOO_LARGE" });
   });
 });
+
+describe("embedded migrations", () => {
+  it("match the SQL files used by npm run db:migrate", async () => {
+    const { readFileSync, readdirSync } = await import("node:fs");
+    const { MIGRATIONS } = await import("@/lib/server/migrations");
+    const files = readdirSync("db/migrations").filter((f) => f.endsWith(".sql")).sort();
+    expect(MIGRATIONS.map((m) => m.version)).toEqual(files);
+    for (const m of MIGRATIONS) expect(m.sql).toBe(readFileSync(`db/migrations/${m.version}`, "utf8"));
+  });
+});

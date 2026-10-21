@@ -232,7 +232,7 @@ export default function Home() {
                   <tr key={n.id} className={n.primary ? "bg-accent/[0.04]" : undefined}>
                     <td className="px-4 py-3">
                       {n.name}
-                      {n.primary && <span className="ml-2 text-xs text-accent">Primary</span>}
+                      {n.primary && !n.testnet && <span className="ml-2 text-xs text-accent">Primary</span>}
                     </td>
                     <td className="px-4 py-3 font-mono text-[13px] text-fg-2">{n.chainId}</td>
                     <td className="px-4 py-3 text-fg-2">{n.sourceVerification.join(", ")}</td>

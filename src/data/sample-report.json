@@ -1,7 +1,7 @@
 {
  "id": "sample",
  "schemaVersion": 1,
- "createdAt": "2026-10-20T18:05:02.352Z",
+ "createdAt": "2026-10-21T15:37:43.929Z",
  "network": {
   "id": "local-anvil",
   "name": "Local development chain (anvil)",
@@ -1394,7 +1394,7 @@
    "confidence": "medium",
    "kind": "heuristic_warning",
    "category": "Access control",
-   "explanation": "setFeeRecipient(address) appears to can change fees, yet UNWRAP found no modifier, msg.sender check or role check restricting it. If that is accurate, any address can call it.",
+   "explanation": "setFeeRecipient(address) appears to grant these capabilities: can change fees. Yet UNWRAP found no modifier, msg.sender check or role check restricting it. If that is accurate, any address can call it.",
    "evidence": [
     {
      "basis": "source",

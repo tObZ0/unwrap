@@ -636,7 +636,7 @@ function sourceFindings(
         confidence: "medium",
         kind: "heuristic_warning",
         category: "Access control",
-        explanation: `${sig} appears to ${sensitive.map((s) => CAPABILITY_TEXT[s as PermissionCapability].title.toLowerCase()).join(", ")}, yet UNWRAP found no modifier, msg.sender check or role check restricting it. If that is accurate, any address can call it.`,
+        explanation: `${sig} appears to grant these capabilities: ${sensitive.map((s) => CAPABILITY_TEXT[s as PermissionCapability].title.toLowerCase()).join("; ")}. Yet UNWRAP found no modifier, msg.sender check or role check restricting it. If that is accurate, any address can call it.`,
         evidence: [{ basis: "source", function: sig, location: where, description: `Writes: ${[...f.effective.stateWrites.keys()].join(", ") || "n/a"}; modifiers: ${f.modifiers.map((m) => m.name).join(", ") || "none"}` }],
         recommendation: "Read the function body to confirm. If it is genuinely open, the value it controls can be changed by anyone.",
         limitations: "Classification relies on names of the state variables written. A variable such as `feeRecipient` set by anyone may be intended, e.g. per-user settings.",

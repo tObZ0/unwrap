@@ -107,13 +107,17 @@ Secrets are only read server-side. The only `NEXT_PUBLIC_` variables are optiona
 ```bash
 DATABASE_URL=postgres://user:pass@host:5432/db npm run db:migrate
 ```
-Migrations live in `db/migrations` and are tracked in `schema_migrations` (safe to re-run). Tables:
+Migrations are also applied **automatically** the first time the app connects (under a Postgres advisory
+lock, so concurrent serverless instances don't race); set `UNWRAP_AUTO_MIGRATE=0` to disable that and run
+them yourself. Migrations live in `db/migrations` and are tracked in `schema_migrations` (safe to re-run). Tables:
 `reports` (full report JSON plus indexed columns), `ai_messages`, `rate_limits`, `usage_events`.
 Users are anonymous: a browser gets a random httpOnly cookie; only its SHA-256 hash is stored. It owns
 the reports and conversations it creates. Private reports return 404 to everyone else. No emails, wallet
 addresses of users or raw IPs are stored.
 
-Without `DATABASE_URL`, an in-memory store is used. The UI and `/api/health` say so explicitly; it is
+Without `DATABASE_URL`, an in-memory store is used. **It does not work on Vercel or any serverless host**:
+the function that runs an analysis and the one that renders the report do not share memory, so reports
+appear to vanish. Always set `DATABASE_URL` when deploying. The UI and `/api/health` say so explicitly; it is
 for development only (lost on restart, not shared across serverless instances).
 
 ## AI provider
@@ -197,8 +201,8 @@ is regenerated from the RiskyToken fixture with `UNWRAP_WRITE_SAMPLE=1` during t
 
 ## Deploying to Vercel
 1. Push the repository to GitHub/GitLab and import it in Vercel (framework preset: Next.js; defaults for build/output).
-2. Create a PostgreSQL database (Vercel Marketplace → Neon, or Supabase) and run migrations once from your machine:
-   `DATABASE_URL=<production url> npm run db:migrate`.
+2. Create a PostgreSQL database: in the project open *Storage → Create Database → Neon*, and connect it to the
+   project. This sets `DATABASE_URL`; tables are created automatically on first use.
 3. In *Project → Settings → Environment Variables* add at least `DATABASE_URL`, `ROBINHOOD_RPC_URL`,
    `RATE_LIMIT_SALT`, and optionally `AI_API_KEY`, `ETHERSCAN_API_KEY`, `SLITHER_WORKER_URL/TOKEN` and the other RPC URLs.
 4. Deploy. Check `https://<your-domain>/api/health`: storage should be `postgres` and `reachable: true`.

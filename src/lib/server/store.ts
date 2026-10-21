@@ -1,5 +1,6 @@
 import { AppError } from "@/lib/errors";
 import { SEVERITY_ORDER, type Report, type Severity } from "@/lib/analysis/types";
+import { MIGRATIONS } from "./migrations";
 
 export type Visibility = "public" | "private";
 
@@ -276,6 +277,38 @@ export class PostgresStore implements ReportStore {
   }
 }
 
+// ---- Automatic migrations -----------------------------------------------------
+
+type PoolLike = Queryable & { connect: () => Promise<Queryable & { release: () => void }> };
+
+/** Applies pending migrations once, under an advisory lock so concurrent instances don't race. */
+export async function migrate(pool: PoolLike): Promise<string[]> {
+  const client = await pool.connect();
+  const applied: string[] = [];
+  try {
+    await client.query("SELECT pg_advisory_lock(727274)");
+    await client.query("CREATE TABLE IF NOT EXISTS schema_migrations (version TEXT PRIMARY KEY, applied_at TIMESTAMPTZ NOT NULL DEFAULT now())");
+    for (const m of MIGRATIONS) {
+      const done = await client.query("SELECT 1 FROM schema_migrations WHERE version = $1", [m.version]);
+      if (done.rowCount) continue;
+      await client.query("BEGIN");
+      try {
+        await client.query(m.sql);
+        await client.query("INSERT INTO schema_migrations (version) VALUES ($1)", [m.version]);
+        await client.query("COMMIT");
+        applied.push(m.version);
+      } catch (e) {
+        await client.query("ROLLBACK");
+        throw e;
+      }
+    }
+  } finally {
+    await client.query("SELECT pg_advisory_unlock(727274)").catch(() => undefined);
+    client.release();
+  }
+  return applied;
+}
+
 // ---- Factory ------------------------------------------------------------------
 
 const g = globalThis as unknown as { __unwrapStore?: ReportStore };
@@ -293,6 +326,17 @@ export async function getStore(): Promise<ReportStore> {
       connectionTimeoutMillis: 8000,
       idleTimeoutMillis: 20000,
     });
+    if (process.env.UNWRAP_AUTO_MIGRATE !== "0") {
+      try {
+        const applied = await migrate(pool as unknown as PoolLike);
+        if (applied.length) console.log("[unwrap] applied migrations:", applied.join(", "));
+      } catch (e) {
+        // Don't cache a store we could not prepare; the next request retries.
+        console.error("[unwrap] migration failed:", (e as Error).message);
+        await pool.end().catch(() => undefined);
+        throw new AppError("STORAGE_ERROR", "The report database could not be prepared. Check DATABASE_URL.");
+      }
+    }
     g.__unwrapStore = new PostgresStore(pool);
   } else {
     g.__unwrapStore = new MemoryStore();
