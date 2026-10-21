@@ -122,7 +122,7 @@ export async function analyseContract(network: NetworkConfig, rawAddress: string
     if (model.filesParsed === 0) model = null;
   }
   const depth = depthOf(logicSource, model);
-  const engine: EngineOutput = runEngine({ abi: logicSource?.abi ?? null, model, bytecode, logicBytecode });
+  const engine: EngineOutput = runEngine({ abi: logicSource?.abi ?? null, model, bytecode, logicBytecode, compilerVersion: logicSource?.compilerVersion });
   steps.push({
     step: "Analyse functions and permissions",
     status: depth === "bytecode" ? "partial" : "ok",
@@ -138,7 +138,7 @@ export async function analyseContract(network: NetworkConfig, rawAddress: string
   let proxyEngine: EngineOutput | null = null;
   if (proxy.isProxy && own.source && sourceFromImplementation) {
     const pm = analyseSources(own.source.files, own.source.contractName);
-    proxyEngine = runEngine({ abi: own.source.abi, model: pm.filesParsed ? pm : null, bytecode });
+    proxyEngine = runEngine({ abi: own.source.abi, model: pm.filesParsed ? pm : null, bytecode, compilerVersion: own.source.compilerVersion });
   }
 
   // Slither (isolated worker).

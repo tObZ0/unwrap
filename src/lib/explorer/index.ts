@@ -158,7 +158,11 @@ export async function lookupEtherscan(n: NetworkConfig, address: string, f: Fetc
 export async function lookupBlockscout(n: NetworkConfig, address: string, f: Fetcher): Promise<{ source: VerifiedSource | null; attempt: SourceLookupAttempt }> {
   const base = n.explorer.api.baseUrl!.replace(/\/$/, "");
   const res = await f(`${base}/api?module=contract&action=getsourcecode&address=${address}`);
-  if (!res.ok) return { source: null, attempt: { provider: "blockscout", outcome: "unavailable", detail: `Blockscout returned HTTP ${res.status}.` } };
+  if (!res.ok) {
+    const botCheck = /Just a moment|cf-chl|challenge-platform/i.test(res.text);
+    const detail = botCheck ? `Blockscout's API is behind a bot check that blocked this request (HTTP ${res.status}).` : `Blockscout returned HTTP ${res.status}.`;
+    return { source: null, attempt: { provider: "blockscout", outcome: "unavailable", detail } };
+  }
   let body: { status?: string; message?: string; result?: unknown };
   try {
     body = JSON.parse(res.text);
@@ -211,7 +215,7 @@ export async function lookupSourcify(n: NetworkConfig, address: string, f: Fetch
       abi: Array.isArray(body.abi) ? body.abi : null,
       explorerImplementation: maybeAddress(body.proxyResolution?.implementations?.[0]?.address),
     },
-    attempt: { provider: "sourcify", outcome: "verified", detail: `Sourcify ${body.match} match.` },
+    attempt: { provider: "sourcify", outcome: "verified", detail: body.match === "exact_match" ? "Exact match on Sourcify." : "Partial match on Sourcify." },
   };
 }
 

@@ -65,6 +65,68 @@ describe("Solidity source analysis", () => {
     expect(out.classification.patterns.map((p) => p.name)).toContain("Role-based access control");
   });
 
+  it("follows super calls past interface declarations to the guarded parent (USDG-style grantRole)", () => {
+    const src = `pragma solidity ^0.8.20;
+      interface IAccessControl { function grantRole(bytes32 role, address account) external; }
+      abstract contract AccessControl is IAccessControl { mapping(bytes32 => mapping(address => bool)) _roles;
+        modifier onlyRole(bytes32 role) { _checkRole(role); _; }
+        function _checkRole(bytes32 role) internal view { require(_roles[role][msg.sender]); }
+        function getRoleAdmin(bytes32) public pure returns (bytes32) { return 0x00; }
+        function grantRole(bytes32 role, address account) public virtual override onlyRole(getRoleAdmin(role)) { _grantRole(role, account); }
+        function _grantRole(bytes32 role, address account) internal { _roles[role][account] = true; } }
+      interface IRules is IAccessControl {}
+      abstract contract Rules is IRules, AccessControl {
+        function grantRole(bytes32 role, address account) public virtual override(AccessControl, IAccessControl) { require(role != 0x00); super.grantRole(role, account); } }
+      contract T is Rules {}`;
+    const m = analyseSources([{ path: "T.sol", content: src }], "T");
+    const grant = m.callable.find((f) => f.name === "grantRole")!;
+    expect(accessControlOf(grant, m)).toMatchObject({ restricted: true, authority: "role: getRoleAdmin(role)" });
+  });
+
+  it("treats an external authorisation call that receives msg.sender as a guard (USDG-style mint)", () => {
+    const src = `pragma solidity ^0.8.20;
+      interface ISupplyControl { function canMintToAddress(address to, uint256 v, address sender) external view; }
+      contract T { ISupplyControl public supplyControl; uint256 public totalSupply; mapping(address=>uint256) public balanceOf;
+        function increaseSupplyToAddress(uint256 v, address to) public { supplyControl.canMintToAddress(to, v, msg.sender); totalSupply += v; balanceOf[to] += v; }
+        function mint(address to, uint256 v) public { increaseSupplyToAddress(v, to); } }`;
+    const m = analyseSources([{ path: "T.sol", content: src }], "T");
+    const mint = m.callable.find((f) => f.name === "mint")!;
+    expect(accessControlOf(mint, m)).toMatchObject({ restricted: true, authority: "decided by external contract (supplyControl)" });
+    const out = runEngine({ abi: null, model: m, bytecode: analyseBytecode("0x00") });
+    expect(out.permissions.some((p) => p.title.includes("anyone can call"))).toBe(false);
+    // canMintToAddress is declared view, so the call is a STATICCALL and cannot re-enter.
+    expect(out.findings.some((f) => f.ruleId === "reentrancy-state-after-call")).toBe(false);
+  });
+
+  it("treats initialize() guarded through a private reinitializer as one-time setup, not open to anyone", () => {
+    const src = `pragma solidity ^0.8.20;
+      abstract contract Initializable { modifier reinitializer(uint64 v) { _; } }
+      contract T is Initializable { mapping(bytes32 => mapping(address => bool)) _roles; address public owner;
+        function initialize(address o) public { _initialize(o); }
+        function _initialize(address o) private reinitializer(3) { _grantRole(0x00, o); owner = o; }
+        function _grantRole(bytes32 r, address a) internal { if (!hasRole(r, a)) _roles[r][a] = true; }
+        function hasRole(bytes32 r, address a) public view returns (bool) { return _roles[r][a]; } }`;
+    const m = analyseSources([{ path: "T.sol", content: src }], "T");
+    const out = runEngine({ abi: null, model: m, bytecode: analyseBytecode("0x00") });
+    const init = out.permissions.filter((p) => p.functions.some((s) => s.startsWith("initialize(")));
+    expect(init.length).toBeGreaterThan(0);
+    for (const p of init) expect(p.authority).toBe("one-time initializer");
+    expect(out.findings.some((f) => f.ruleId === "unprotected-initializer")).toBe(false);
+  });
+
+  it("trusts the verified compiler version over wide pragmas in imported files", () => {
+    const files = [
+      { path: "T.sol", content: `pragma solidity 0.8.28; import "./console.sol"; contract T { uint256 public x; function inc() external { x += 1; } }` },
+      { path: "console.sol", content: `pragma solidity >=0.4.22 <0.9.0; library console {}` },
+    ];
+    const m = analyseSources(files, "T");
+    const title = "Compiled with Solidity < 0.8";
+    const withVersion = runEngine({ abi: null, model: m, bytecode: analyseBytecode("0x00"), compilerVersion: "0.8.28+commit.7893614a" });
+    expect(withVersion.findings.some((f) => f.title.startsWith(title))).toBe(false);
+    const withOld = runEngine({ abi: null, model: m, bytecode: analyseBytecode("0x00"), compilerVersion: "v0.6.12+commit.27d51765" });
+    expect(withOld.findings.some((f) => f.title.startsWith(title))).toBe(true);
+  });
+
   it("flags unprotected sensitive functions, selfdestruct and delegatecall", () => {
     const src = `pragma solidity ^0.8.20; contract V { address public owner; uint256 public fee; mapping(address=>uint256) public balanceOf; uint256 public totalSupply;
       function mint(address to, uint256 a) external { totalSupply += a; balanceOf[to] += a; }

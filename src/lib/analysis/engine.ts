@@ -1,6 +1,6 @@
 import { toFunctionSelector, toEventSelector, type AbiFunction, type AbiEvent, type AbiParameter } from "viem";
 import { lookupSelector, type BytecodeFacts } from "./bytecode";
-import { accessControlOf, type FunctionModel, type SourceModel, type AccessInfo } from "./source-analyzer";
+import { accessControlOf, isInitializerGuarded, type FunctionModel, type SourceModel, type AccessInfo } from "./source-analyzer";
 import type {
   Classification,
   Confidence,
@@ -26,6 +26,8 @@ export interface EngineInput {
   logicBytecode?: BytecodeFacts;
   /** If sources were attached to an implementation, file paths are relative to it. */
   sourceLabel?: string;
+  /** Exact compiler version from the verifier (e.g. "0.8.28+commit…"), when known. */
+  compilerVersion?: string;
 }
 
 export interface EngineOutput {
@@ -397,7 +399,7 @@ export function runEngine(input: EngineInput): EngineOutput {
   // 4. Findings.
   const findings: Finding[] = [];
   const transferGates: string[] = [];
-  if (model) findings.push(...sourceFindings(model, fnModels, accessBySig, functions, transferGates));
+  if (model) findings.push(...sourceFindings(model, fnModels, accessBySig, functions, transferGates, input.compilerVersion));
   else findings.push(...bytecodeFindings(logic, functions, Boolean(abiFns.length)));
 
   // 5. Classification.
@@ -439,6 +441,7 @@ function buildPermissions(
     let authority: string;
     if (f.basis === "bytecode") authority = "unknown (unverified code)";
     else if (a?.restricted) authority = a.authority ?? "privileged account";
+    else if (models.get(f.signature) && isInitializerGuarded(models.get(f.signature)!)) authority = "one-time initializer";
     else authority = "anyone (no access check detected)";
 
     // Skip normal user actions: unrestricted burns of one's own tokens, withdrawals to msg.sender.
@@ -470,6 +473,10 @@ function buildPermissions(
     if (isBytecode) limitations = "Inferred only from a function selector matching a common signature. The code is unverified; the function might be restricted, disabled, or behave differently.";
     else if (unrestricted)
       limitations = "UNWRAP found no msg.sender check, role check or restricting modifier on this path. Restrictions implemented in unusual ways (for example in an external contract) would not be detected.";
+    else if (g.authority === "one-time initializer")
+      limitations = "Guarded by an initializer modifier, so it runs at most once per version, normally at deployment or upgrade. UNWRAP does not read whether that has already happened.";
+    else if (g.authority.startsWith("decided by external contract"))
+      limitations = "The caller is checked by another contract at call time. UNWRAP does not analyse that contract, so who is allowed, and any limits it applies, are not shown here.";
     else limitations = "Who holds this authority today is determined on-chain; see Ownership. Constraints elsewhere in the code (caps, timelocks) may limit how it can be used.";
     out.push({
       id: `PERM-${String(i++).padStart(2, "0")}`,
@@ -502,10 +509,17 @@ function sourceFindings(
   access: Map<string, AccessInfo>,
   functions: ContractFunction[],
   transferGates: string[],
+  compilerVersion?: string,
 ): Finding[] {
   counter = 0;
   const out: Finding[] = [];
   const entries = [...fnModels.entries()];
+  // Methods declared view/pure everywhere they appear in the verified source. Calls to them compile to
+  // STATICCALL, which cannot modify state, so they cannot re-enter to change anything.
+  const readOnly = new Map<string, boolean>();
+  for (const c of model.contracts.values())
+    for (const fn of c.functions) readOnly.set(fn.name, (readOnly.get(fn.name) ?? true) && (fn.mutability === "view" || fn.mutability === "pure"));
+  const isStaticCall = (c: { kind: string; text: string }) => c.kind === "external" && readOnly.get(/^[^(]*\.(\w+)\s*\(/.exec(c.text)?.[1] ?? "") === true;
 
   for (const [sig, f] of entries) {
     const a = access.get(sig) ?? accessControlOf(f, model);
@@ -514,7 +528,7 @@ function sourceFindings(
 
     // Reentrancy: external interaction followed by a state write in the same function body.
     if (!guarded && f.mutability !== "view" && f.mutability !== "pure") {
-      const calls = f.direct.externalCalls.filter((c) => c.kind === "call" || c.kind === "external");
+      const calls = f.direct.externalCalls.filter((c) => (c.kind === "call" || c.kind === "external") && !isStaticCall(c));
       for (const c of calls) {
         const later = f.direct.writeEvents.filter((w) => w.pos > c.pos);
         if (later.length) {
@@ -645,7 +659,7 @@ function sourceFindings(
     }
 
     // Initializer without protection.
-    if (/^initialize$/i.test(f.name) && !a.restricted && !f.modifiers.some((m) => /initializer|reinitializer|onlyInitializing/i.test(m.name))) {
+    if (/^initialize$/i.test(f.name) && !a.restricted && !isInitializerGuarded(f)) {
       out.push({
         id: fid("SRC-INIT"),
         ruleId: "unprotected-initializer",
@@ -725,7 +739,12 @@ function sourceFindings(
   }
 
   // Pre-0.8 arithmetic.
-  const oldPragma = model.pragmas.some((p) => /(\^|>=|=|~)?\s*0\.[4-7]\./.test(p) && !/>=\s*0\.8/.test(p));
+  // The verifier's compiler version is authoritative; pragmas are a fallback (wide ranges in imports such as
+  // hardhat/console.sol would otherwise trigger this on 0.8 code).
+  const compiled = /^v?0\.(\d+)\./.exec(compilerVersion ?? "");
+  const oldPragma = compiled
+    ? Number(compiled[1]) < 8
+    : model.pragmas.some((p) => /(\^|>=|=|~)?\s*0\.[4-7]\./.test(p) && !/>=\s*0\.8/.test(p));
   if (oldPragma) {
     const usesSafeMath = model.linearized.some((c) => c.usingFor.some((u) => /SafeMath/i.test(u)));
     out.push({

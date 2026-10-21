@@ -15,17 +15,17 @@ simulated Blockscout responses. "Live" = must be confirmed against Robinhood's i
 
 | Check | How UNWRAP does it | Local | Live |
 |---|---|---|---|
-| RPC connectivity | viem client, configured RPC first, then public fallback | ✅ | ⬜ run test:live |
-| Chain ID validation | `eth_chainId` must equal 4663/46630 before any read; mismatch aborts | ✅ (`CHAIN_ID_MISMATCH` test) | ⬜ |
+| RPC connectivity | viem client, configured RPC first, then public fallback | ✅ | ✅ test:live, 2026-10-21 |
+| Chain ID validation | `eth_chainId` must equal 4663/46630 before any read; mismatch aborts | ✅ (`CHAIN_ID_MISMATCH` test) | ✅ 4663 and 46630 confirmed |
 | Address validation | format + EIP-55 checksum before any request | ✅ unit | n/a |
-| Bytecode retrieval | `eth_getCode`; empty code → `NO_CONTRACT_CODE` with nonce | ✅ | ⬜ |
-| Verified source | Blockscout `/api?module=contract&action=getsourcecode`, merges `AdditionalSources`; Sourcify fallback | ✅ (simulated Blockscout) | ⬜ |
-| ABI parsing | ABI from Blockscout; selectors via viem | ✅ | ⬜ |
-| Token metadata | `name/symbol/decimals/totalSupply`, `cap/maxSupply` only if present | ✅ | ⬜ |
-| Proxy detection | EIP-1967 slots via `eth_getStorageAt`, beacon call, EIP-1167 template, Blockscout `ImplementationAddress` | ✅ | ⬜ (USDG expected to be a proxy) |
-| Report generation | full pipeline, stored in Postgres | ✅ | ⬜ |
-| Explorer links | `https://robinhoodchain.blockscout.com/address/<addr>` | ✅ rendered | ⬜ click-through |
-| Failure handling | dead RPC → `NETWORK_UNAVAILABLE`; explorer 5xx → recorded, analysis continues | ✅ | ⬜ |
+| Bytecode retrieval | `eth_getCode`; empty code → `NO_CONTRACT_CODE` with nonce | ✅ | ✅ (WETH, USDG; `NO_CONTRACT_CODE` for 0x…dEaD) |
+| Verified source | Blockscout `/api?module=contract&action=getsourcecode`, merges `AdditionalSources`; Sourcify fallback | ✅ (simulated Blockscout) | ✅ testnet via Blockscout; mainnet Blockscout API sits behind a Cloudflare bot check (HTTP 403), so source comes from Sourcify (exact match) |
+| ABI parsing | ABI from Blockscout; selectors via viem | ✅ | ✅ |
+| Token metadata | `name/symbol/decimals/totalSupply`, `cap/maxSupply` only if present | ✅ | ✅ WETH (18 dp), USDG (6 dp) |
+| Proxy detection | EIP-1967 slots via `eth_getStorageAt`, beacon call, EIP-1167 template, Blockscout `ImplementationAddress` | ✅ | ✅ WETH: EIP-1967 transparent; USDG: EIP-1967 → 0x68184C…6f8F |
+| Report generation | full pipeline, stored in Postgres | ✅ | ✅ live site, Neon Postgres |
+| Explorer links | `https://robinhoodchain.blockscout.com/address/<addr>` | ✅ rendered | ✅ opens in a browser |
+| Failure handling | dead RPC → `NETWORK_UNAVAILABLE`; explorer 5xx → recorded, analysis continues | ✅ | ✅ explorer 403 recorded, analysis continued (dead RPC: local only) |
 
 Notes
 - The public RPC is rate-limited. Set `ROBINHOOD_RPC_URL` to a provider endpoint (Robinhood recommends Alchemy) for production.

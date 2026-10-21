@@ -127,6 +127,8 @@ export interface Effects {
   txOriginTexts: string[];
   senderChecks: { line: number; text: string }[];
   roleChecks: { line: number; role: string }[];
+  /** Calls into another contract that pass msg.sender to an authorisation method, e.g. supplyControl.canMint(..., msg.sender). */
+  externalAuthChecks: { line: number; text: string; target: string }[];
   conditionRefs: Set<string>;
   assemblySstore: boolean;
   assemblyDelegatecall: boolean;
@@ -146,6 +148,7 @@ function emptyEffects(): Effects {
     txOriginTexts: [],
     senderChecks: [],
     roleChecks: [],
+    externalAuthChecks: [],
     conditionRefs: new Set(),
     assemblySstore: false,
     assemblyDelegatecall: false,
@@ -403,8 +406,10 @@ function collectEffects(body: unknown, stateVarNames: Set<string>, paramNames: S
       const name = str(callee.name);
       if (name === "selfdestruct" || name === "suicide") e.selfdestructLines.push(line);
       else if (name === "_checkRole" || name === "hasRole") {
-        const role = exprText((n.arguments as unknown[])[0]);
-        e.roleChecks.push({ line, role });
+        // Only a check on the caller is an access guard; hasRole(role, account) on some other account is not.
+        const args = (n.arguments as unknown[]) ?? [];
+        const who = args[1] === undefined ? (name === "_checkRole" ? "msg.sender" : "") : exprText(args[1]);
+        if (/^(msg\.sender|_msgSender\(\))$/.test(who)) e.roleChecks.push({ line, role: exprText(args[0]) });
         e.internalCalls.add(name);
       } else if (!["require", "assert", "revert", "keccak256", "abi", "type", "address", "payable", "sha256", "ecrecover"].includes(name)) {
         e.internalCalls.add(name);
@@ -436,6 +441,10 @@ function collectEffects(body: unknown, stateVarNames: Set<string>, paramNames: S
       // Ignore pure-ish members on built-ins like address.balance or array.push
       if (kind === "external" && ["push", "pop", "length", "balance", "code", "codehash", "selector", "encode", "decode", "add", "sub", "mul", "div", "toString", "isContract", "concat", "remove", "contains", "at", "values", "set", "get", "tryGet"].includes(member)) return;
       if (kind === "external" && targetBase && stateVarNames.has(targetBase) && /^(add|remove|contains|set)$/.test(member)) return;
+
+      if (kind === "external" && EXTERNAL_AUTH_RE.test(member) && args.some((a) => /^(msg\.sender|_msgSender\(\))$/.test(exprText(a)))) {
+        e.externalAuthChecks.push({ line, text: exprText(n).slice(0, 160), target: targetText.slice(0, 60) });
+      }
 
       const firstArgIds = identifiersIn(args[0]);
       const call: ExternalCall = {
@@ -491,6 +500,9 @@ function collectEffects(body: unknown, stateVarNames: Set<string>, paramNames: S
   return e;
 }
 
+/** Method names that, when passed msg.sender, read as an authorisation check in another contract. */
+const EXTERNAL_AUTH_RE = /^(can[A-Z_]|check|require|only|isAuthori[sz]ed|authori[sz]e|assertCan)/;
+
 function mergeEffects(into: Effects, from: Effects): void {
   for (const [k, v] of from.stateWrites) if (!into.stateWrites.has(k)) into.stateWrites.set(k, v);
   into.writeEvents.push(...from.writeEvents);
@@ -501,6 +513,7 @@ function mergeEffects(into: Effects, from: Effects): void {
   into.txOriginTexts.push(...from.txOriginTexts);
   into.senderChecks.push(...from.senderChecks);
   into.roleChecks.push(...from.roleChecks);
+  into.externalAuthChecks.push(...from.externalAuthChecks);
   for (const r of from.conditionRefs) into.conditionRefs.add(r);
   into.assemblySstore ||= from.assemblySstore;
   into.assemblyDelegatecall ||= from.assemblyDelegatecall;
@@ -654,6 +667,7 @@ export function analyseSources(files: SourceFile[], mainContractName: string | n
 
   // Functions.
   const allFns: FunctionModel[] = [];
+  const bodyless = new WeakSet<FunctionModel>();
   for (const r of rawFns) {
     const n = r.node;
     const kind: FunctionModel["kind"] = n.isConstructor ? "constructor" : n.isFallback ? "fallback" : n.isReceiveEther ? "receive" : "function";
@@ -680,6 +694,7 @@ export function analyseSources(files: SourceFile[], mainContractName: string | n
       effective: emptyEffects(),
       via: [],
     };
+    if (!n.body) bodyless.add(fm);
     const c = contracts.get(r.contract);
     if (c) c.functions.push(fm);
     if (inScope.has(r.contract)) allFns.push(fm);
@@ -708,26 +723,31 @@ export function analyseSources(files: SourceFile[], mainContractName: string | n
         if (m.name === "onlyRole" && m.args[0]) eff.roleChecks.push({ line: f.line, role: m.args[0] });
       }
     }
-    const visited = new Set<string>([f.name]);
-    let frontier = [...f.direct.internalCalls];
+    const visited = new Set<string>([`${f.name}@${f.contract}`]);
+    const hasBody = (c: FunctionModel) => !bodyless.has(c) && contracts.get(c.contract)?.kind !== "interface";
+    let frontier = [...f.direct.internalCalls].map((call) => ({ call, from: f.contract }));
     for (let depth = 0; depth < 5 && frontier.length; depth++) {
-      const next: string[] = [];
-      for (const call of frontier) {
+      const next: { call: string; from: string }[] = [];
+      for (const { call, from } of frontier) {
         const isSuper = call.startsWith("super.");
         const name = isSuper ? call.slice(6) : call;
-        if (visited.has(call)) continue;
-        visited.add(call);
-        const candidates = byName.get(name) ?? [];
-        // For super calls skip the current contract's definition.
-        const target = isSuper ? candidates.find((c) => c.contract !== f.contract) : candidates[0];
+        const candidates = (byName.get(name) ?? []).filter(hasBody);
+        // super.foo() resolves to the next implementation after the calling contract in linearised order.
+        const fromIdx = linearNames.indexOf(from);
+        const target = isSuper ? candidates.find((c) => linearNames.indexOf(c.contract) > fromIdx) : candidates[0];
         if (!target || target === f) continue;
+        const key = `${target.name}@${target.contract}`;
+        if (visited.has(key)) continue;
+        visited.add(key);
         mergeEffects(eff, target.direct);
         for (const m of target.modifiers) {
+          if (m.name === "onlyRole" && m.args[0]) eff.roleChecks.push({ line: target.line, role: m.args[0] });
           const mm = modByName.get(m.name);
           if (mm) mergeEffects(eff, mm.effects);
+          via.push(`modifier ${m.name}`);
         }
         via.push(`${target.contract}.${target.name}`);
-        next.push(...target.direct.internalCalls);
+        next.push(...[...target.direct.internalCalls].map((c) => ({ call: c, from: target.contract })));
       }
       frontier = next;
     }
@@ -769,6 +789,13 @@ export function analyseSources(files: SourceFile[], mainContractName: string | n
 
 // ---- Access control --------------------------------------------------------
 
+const INITIALIZER_RE = /initializer|reinitializer|onlyInitializing/i;
+
+/** True when an initializer-style modifier guards the function itself or a function it calls. */
+export function isInitializerGuarded(f: FunctionModel): boolean {
+  return f.modifiers.some((m) => INITIALIZER_RE.test(m.name)) || f.via.some((v) => v.startsWith("modifier ") && INITIALIZER_RE.test(v.slice(9)));
+}
+
 const OWNER_RE = /owner/i;
 
 function authorityFromSenderCheck(text: string): string {
@@ -808,6 +835,10 @@ export function accessControlOf(f: FunctionModel, model: SourceModel): AccessInf
   if (eff.senderChecks.length) {
     const sc = eff.senderChecks[0]!;
     return { restricted: true, mechanism: `require(${sc.text})`, authority: authorityFromSenderCheck(sc.text) };
+  }
+  if (eff.externalAuthChecks.length) {
+    const x = eff.externalAuthChecks[0]!;
+    return { restricted: true, mechanism: `external check ${x.text}`, authority: `decided by external contract (${x.target})` };
   }
   const helper = [...eff.internalCalls].find((c) => /^_?(checkOwner|onlyOwner|requireOwner|checkRole|authorizeUpgrade|onlyAdmin|_requireCallerIsOwner)$/i.test(c));
   if (helper) return { restricted: true, mechanism: `${helper}()`, authority: OWNER_RE.test(helper) ? "owner" : "privileged account" };
