@@ -1,0 +1,132 @@
+@import "tailwindcss";
+
+/* UNWRAP design tokens. The brief fixes the palette; everything else derives from it. */
+@theme {
+  --color-bg: #090a0a;
+  --color-bg-2: #101212;
+  --color-card: #141716;
+  --color-card-2: #1a1e1c;
+  --color-fg: #f4f6f4;
+  --color-fg-2: #a0a8a2;
+  --color-fg-3: #6f7872;
+  --color-accent: #b8ff3b;
+  --color-accent-ink: #0d1400;
+  --color-line: #272c28;
+  --color-line-2: #343a36;
+
+  --color-sev-critical: #ff5c5c;
+  --color-sev-high: #ff8a3d;
+  --color-sev-medium: #f2c94c;
+  --color-sev-low: #7cc4ff;
+  --color-sev-info: #a0a8a2;
+
+  --font-display: "Bricolage Grotesque Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Inter Tight Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono Variable", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 14px;
+}
+
+:root {
+  color-scheme: dark;
+}
+
+html {
+  background: var(--color-bg);
+  color: var(--color-fg);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+body {
+  font-family: var(--font-sans);
+  font-size: 16px;
+  line-height: 1.55;
+  min-height: 100dvh;
+}
+
+::selection {
+  background: var(--color-accent);
+  color: var(--color-accent-ink);
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.font-display {
+  font-family: var(--font-display);
+  font-optical-sizing: auto;
+}
+
+/* Hairline grid used once, behind the hero, as the "technical detail". */
+.hero-grid {
+  background-image:
+    linear-gradient(to right, rgb(39 44 40 / 0.55) 1px, transparent 1px),
+    linear-gradient(to bottom, rgb(39 44 40 / 0.55) 1px, transparent 1px);
+  background-size: 48px 48px;
+  mask-image: radial-gradient(ellipse 80% 70% at 30% 20%, black 30%, transparent 75%);
+}
+
+/* The single orchestrated moment: the headline unwraps on load. */
+@keyframes unwrap-in {
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+.unwrap-reveal {
+  animation: unwrap-in 900ms cubic-bezier(0.65, 0, 0.35, 1) both;
+}
+.unwrap-reveal-2 {
+  animation: unwrap-in 900ms 180ms cubic-bezier(0.65, 0, 0.35, 1) both;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+.skeleton {
+  background: linear-gradient(90deg, var(--color-card) 0%, var(--color-card-2) 50%, var(--color-card) 100%);
+  background-size: 200% 100%;
+  animation: shimmer 1.6s linear infinite;
+  border-radius: var(--radius-sm);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .unwrap-reveal,
+  .unwrap-reveal-2,
+  .skeleton {
+    animation: none;
+  }
+}
+
+/* Solidity highlighting (spans produced by a tokenizer, never innerHTML). */
+.tok-kw { color: #c792ea; }
+.tok-type { color: #82aaff; }
+.tok-str { color: #c3e88d; }
+.tok-num { color: #f78c6c; }
+.tok-com { color: #6f7872; font-style: italic; }
+.tok-fn { color: var(--color-accent); }
+
+details > summary {
+  list-style: none;
+}
+details > summary::-webkit-details-marker {
+  display: none;
+}
+
+.scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-line-2) transparent;
+}
