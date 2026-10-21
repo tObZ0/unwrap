@@ -18,8 +18,8 @@ export function SiteHeader() {
   const path = usePathname();
   const [open, setOpen] = useState(false);
   return (
-    <header className="sticky top-0 z-40 border-b border-line bg-bg/90 backdrop-blur">
-      <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-5">
+    <header className="sticky top-0 z-40 border-b border-line bg-bg/92 backdrop-blur">
+      <div className="mx-auto flex h-14 max-w-[1180px] items-center justify-between px-5">
         <Link href="/" aria-label="UNWRAP home" onClick={() => setOpen(false)}>
           <Logo />
         </Link>
@@ -28,7 +28,7 @@ export function SiteHeader() {
             <Link
               key={n.href}
               href={n.href}
-              className={cx("rounded-md px-3 py-1.5 text-sm text-fg-2 hover:bg-card hover:text-fg", path === n.href && "text-fg")}
+              className={cx("rounded-md px-3 py-1.5 text-[15px] text-fg-2 hover:text-fg", path === n.href && "font-semibold text-fg")}
               aria-current={path === n.href ? "page" : undefined}
             >
               {n.label}

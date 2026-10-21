@@ -5,8 +5,10 @@ import { useRouter } from "next/navigation";
 import * as Tabs from "@radix-ui/react-tabs";
 import { ExternalLink, Eye, EyeOff, LoaderCircle, RefreshCw, Share2 } from "lucide-react";
 import type { Report, SourceLocation } from "@/lib/analysis/types";
-import { DEPTH_LABEL, explorerAddress, formatDate } from "@/lib/format";
-import { CopyButton, Notice, SeverityBadge, Tag, cx } from "@/components/ui";
+import { DEPTH_LABEL, SEVERITY_LABEL, explorerAddress, formatDate } from "@/lib/format";
+import { CopyButton, Notice, Tag, cx } from "@/components/ui";
+
+const SEV_TEXT = { critical: "text-sev-critical", high: "text-sev-high", medium: "text-sev-medium", low: "text-sev-low", info: "text-sev-info" } as const;
 import { OverviewTab } from "./overview-tab";
 import { FunctionsTab } from "./functions-tab";
 import { PermissionsTab } from "./permissions-tab";
@@ -119,7 +121,7 @@ export function ReportView(props: { report: Report; visibility?: "public" | "pri
   for (const f of r.findings) counts[f.severity]++;
 
   return (
-    <div className="mx-auto max-w-6xl px-5 py-10">
+    <div className="mx-auto max-w-[1180px] px-5 py-10">
       {sample && (
         <div className="mb-6">
           <Notice tone="warn" title="Sample report">
@@ -141,7 +143,7 @@ export function ReportView(props: { report: Report; visibility?: "public" | "pri
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2 text-sm text-fg-2">
             <Tag tone={r.network.id.startsWith("robinhood") ? "accent" : "plain"}>{r.network.name}</Tag>
-            <Tag tone={r.depth === "source" ? "accent" : "warn"}>{r.verification.verified ? "Verified" : "Unverified"}: {DEPTH_LABEL[r.depth]}</Tag>
+            <Tag tone={r.depth === "source" ? "accent" : "warn"}>{r.depth === "source" ? "Verified source" : r.verification.verified ? `Verified, ${DEPTH_LABEL[r.depth].toLowerCase()}` : "Unverified, bytecode only"}</Tag>
             {r.proxy.isProxy && <Tag tone="warn">Proxy</Tag>}
             {visibility === "private" && <Tag>Private</Tag>}
           </div>
@@ -185,8 +187,8 @@ export function ReportView(props: { report: Report; visibility?: "public" | "pri
       )}
 
       {/* Summary */}
-      <section className="grid gap-8 border-b border-line py-8 lg:grid-cols-[1.6fr_1fr]" aria-labelledby="sum-h">
-        <div>
+      <section className="grid gap-8 border-b border-line py-8 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]" aria-labelledby="sum-h">
+        <div className="min-w-0 [overflow-wrap:anywhere]">
           <h2 id="sum-h" className="text-sm text-fg-3">
             Summary
           </h2>
@@ -198,13 +200,14 @@ export function ReportView(props: { report: Report; visibility?: "public" | "pri
             ))}
           </ul>
         </div>
-        <div className="space-y-5">
+        <div className="min-w-0 space-y-5">
           <div>
             <p className="text-sm text-fg-3">Findings by severity</p>
-            <div className="mt-2 flex flex-wrap gap-2">
-              {(["critical", "high", "medium", "low", "info"] as const).map((s) => (
-                <button key={s} type="button" onClick={() => nav.goTo("security")} className="inline-flex items-center gap-1.5 rounded-md border border-line px-2 py-1 hover:bg-card" aria-label={`${counts[s]} ${s} findings`}>
-                  <SeverityBadge severity={s} /> <span className="font-mono text-sm">{counts[s]}</span>
+            <div className="mt-2 grid grid-cols-5 divide-x divide-line overflow-hidden rounded-md border border-line bg-card">
+              {(["critical", "high", "medium", "low", "info"] as const).map((sv) => (
+                <button key={sv} type="button" onClick={() => nav.goTo("security")} className="px-2 py-3 text-left hover:bg-card-2 sm:px-3" aria-label={`${counts[sv]} ${sv} findings`}>
+                  <span className={cx("font-display block text-[1.9rem] font-bold leading-none", counts[sv] === 0 ? "text-fg-3/60" : SEV_TEXT[sv])}>{counts[sv]}</span>
+                  <span className="mt-1.5 block text-[12.5px] text-fg-2">{SEVERITY_LABEL[sv]}</span>
                 </button>
               ))}
             </div>
@@ -236,7 +239,7 @@ export function ReportView(props: { report: Report; visibility?: "public" | "pri
             <Tabs.Trigger
               key={t.id}
               value={t.id}
-              className="relative shrink-0 px-3 py-2.5 text-sm text-fg-2 hover:text-fg data-[state=active]:text-fg data-[state=active]:after:absolute data-[state=active]:after:inset-x-2 data-[state=active]:after:-bottom-px data-[state=active]:after:h-0.5 data-[state=active]:after:bg-accent"
+              className="relative shrink-0 px-3 py-2.5 text-sm text-fg-2 hover:text-fg data-[state=active]:text-fg data-[state=active]:after:absolute data-[state=active]:after:inset-x-2 data-[state=active]:after:-bottom-px data-[state=active]:after:h-0.5 data-[state=active]:font-semibold data-[state=active]:after:bg-fg"
             >
               {t.label}
               {t.id === "security" && r.findings.length > 0 && <span className="ml-1.5 text-xs text-fg-3">{r.findings.length}</span>}

@@ -49,7 +49,7 @@ export function ReportsBrowser({ networks, persistent }: { networks: { id: strin
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [q, network, type, severity, mine]);
 
-  const sel = "h-10 rounded-md border border-line bg-bg-2 px-2 text-sm text-fg";
+  const sel = "select h-10 rounded-md border border-line-2 bg-card px-2 text-sm text-fg";
   return (
     <div className="mt-8">
       {!persistent && (
@@ -61,7 +61,7 @@ export function ReportsBrowser({ networks, persistent }: { networks: { id: strin
         <label className="relative sm:col-span-2 lg:col-span-1">
           <span className="sr-only">Search by address or contract name</span>
           <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-fg-3" aria-hidden />
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search by address or contract name" className="h-10 w-full rounded-md border border-line bg-bg-2 pl-9 pr-3 text-sm placeholder:text-fg-3" />
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search by address or contract name" className="h-10 w-full rounded-md border border-line-2 bg-card pl-9 pr-3 text-sm placeholder:text-fg-3" />
         </label>
         <select aria-label="Network" value={network} onChange={(e) => setNetwork(e.target.value)} className={sel}>
           <option value="">All networks</option>
@@ -79,7 +79,7 @@ export function ReportsBrowser({ networks, persistent }: { networks: { id: strin
           <option value="low">Low or worse</option>
         </select>
         <label className="flex h-10 items-center gap-2 rounded-md border border-line px-3 text-sm text-fg-2">
-          <input type="checkbox" checked={mine} onChange={(e) => setMine(e.target.checked)} className="size-4 accent-[var(--color-accent)]" />
+          <input type="checkbox" checked={mine} onChange={(e) => setMine(e.target.checked)} className="size-4 accent-[var(--color-fg)]" />
           Created in this browser
         </label>
       </div>

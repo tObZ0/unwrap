@@ -48,7 +48,7 @@ export function SourceTab({ r, target }: { r: Report; target: SourceLocation | n
   }
   return (
     <div className="grid gap-4 lg:grid-cols-[240px_1fr]">
-      <nav aria-label="Source files" className="scrollbar-thin max-h-[30vh] overflow-auto rounded-lg border border-line lg:max-h-[75vh]">
+      <nav aria-label="Source files" className="scrollbar-thin max-h-[30vh] overflow-auto rounded-lg border border-line bg-card lg:max-h-[75vh]">
         <ul className="py-1 text-sm">
           {files.map((f) => (
             <li key={f.path}>
@@ -60,10 +60,10 @@ export function SourceTab({ r, target }: { r: Report; target: SourceLocation | n
           ))}
         </ul>
       </nav>
-      <div className="min-w-0 rounded-lg border border-line bg-bg-2">
-        <div className="flex items-center justify-between gap-2 border-b border-line px-4 py-2">
-          <span className="truncate font-mono text-xs text-fg-2">{active}</span>
-          <span className="flex shrink-0 items-center gap-2 text-xs text-fg-3">
+      <div className="min-w-0 overflow-hidden rounded-lg border border-code-line bg-code">
+        <div className="flex items-center justify-between gap-2 border-b border-code-line px-4 py-2">
+          <span className="truncate font-mono text-xs text-code-fg">{active}</span>
+          <span className="flex shrink-0 items-center gap-2 text-xs text-code-muted">
             {r.sourceFromImplementation && "implementation source"} {lines.length} lines
             {file && <CopyButton value={file.content} label="Copy file" />}
           </span>

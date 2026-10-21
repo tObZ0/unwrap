@@ -69,17 +69,18 @@ export function highlight(lines: string[]): Token[][] {
   });
 }
 
-export function CodeLines({ lines, startLine = 1, highlightLines }: { lines: string[]; startLine?: number; highlightLines?: Set<number> }) {
+export function CodeLines({ lines, startLine = 1, highlightLines, wrap = false }: { lines: string[]; startLine?: number; highlightLines?: Set<number>; wrap?: boolean }) {
   const toks = highlight(lines);
   return (
-    <pre className="scrollbar-thin overflow-x-auto py-3 font-mono text-[12.5px] leading-[1.7]">
+    <pre className="scrollbar-thin overflow-x-auto bg-code py-3 font-mono text-[12.5px] leading-[1.7] text-code-fg">
       <code>
         {toks.map((line, idx) => {
           const n = startLine + idx;
+          const hit = highlightLines?.has(n);
           return (
-            <div key={n} id={`L${n}`} className={`flex pr-4 ${highlightLines?.has(n) ? "bg-accent/[0.08] shadow-[inset_2px_0_0_var(--color-accent)]" : ""}`}>
-              <span className="w-12 shrink-0 select-none pr-4 text-right text-fg-3/70">{n}</span>
-              <span className="whitespace-pre text-fg">
+            <div key={n} id={`L${n}`} className={`flex pr-4 ${hit ? "bg-mark/[0.13] shadow-[inset_3px_0_0_var(--color-mark)]" : ""}`}>
+              <span className={`${wrap ? "w-9 pr-3" : "w-12 pr-4"} shrink-0 select-none text-right ${hit ? "text-mark" : "text-code-muted"}`}>{n}</span>
+              <span className={wrap ? "min-w-0 whitespace-pre-wrap break-words" : "whitespace-pre"}>
                 {line.map((t, i) => (t.c ? <span key={i} className={t.c}>{t.t}</span> : <Fragment key={i}>{t.t}</Fragment>))}
                 {line.length === 0 && " "}
               </span>

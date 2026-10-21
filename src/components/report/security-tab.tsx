@@ -35,7 +35,7 @@ export function SecurityTab({ r, nav }: { r: Report; nav: Nav }) {
   });
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 [overflow-wrap:anywhere]">
       <Notice tone="info">
         Findings describe patterns in the code. They are not proof of an exploit, and an empty list is not proof of safety.
         {slither && slither.status !== "ran" && <span className="block pt-1 text-fg-3">Slither: {slither.detail}</span>}
@@ -49,14 +49,14 @@ export function SecurityTab({ r, nav }: { r: Report; nav: Nav }) {
           <div className="flex flex-wrap gap-3">
             <label className="text-sm text-fg-2">
               Type{" "}
-              <select value={kind} onChange={(e) => setKind(e.target.value as FindingKind | "all")} className="ml-1 h-9 rounded-md border border-line bg-bg-2 px-2 text-fg">
+              <select value={kind} onChange={(e) => setKind(e.target.value as FindingKind | "all")} className="select ml-1 h-9 rounded-md border border-line-2 bg-card px-2 text-fg">
                 <option value="all">All types</option>
                 {kinds.map((k) => <option key={k} value={k}>{KIND_LABEL[k]}</option>)}
               </select>
             </label>
             <label className="text-sm text-fg-2">
               Source{" "}
-              <select value={detector} onChange={(e) => setDetector(e.target.value as Finding["detector"] | "all")} className="ml-1 h-9 rounded-md border border-line bg-bg-2 px-2 text-fg">
+              <select value={detector} onChange={(e) => setDetector(e.target.value as Finding["detector"] | "all")} className="select ml-1 h-9 rounded-md border border-line-2 bg-card px-2 text-fg">
                 <option value="all">All analysers</option>
                 {detectors.map((d) => <option key={d} value={d}>{DETECTOR[d]}</option>)}
               </select>

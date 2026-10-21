@@ -1,6 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import "@fontsource-variable/bricolage-grotesque";
-import "@fontsource-variable/inter-tight";
+import "@fontsource-variable/archivo/wdth.css";
 import "@fontsource-variable/jetbrains-mono";
 import "./globals.css";
 import { SiteHeader } from "@/components/site-header";
@@ -11,7 +10,7 @@ export const metadata: Metadata = {
   description: "Every contract has a story. Unwrap it. Understand smart contracts in plain English: permissions, risks and on-chain facts, with evidence.",
 };
 
-export const viewport: Viewport = { themeColor: "#090a0a", width: "device-width", initialScale: 1 };
+export const viewport: Viewport = { themeColor: "#e9ece8", width: "device-width", initialScale: 1 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (

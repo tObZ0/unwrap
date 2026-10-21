@@ -35,8 +35,8 @@ function Addr({ a, explorerUrl }: { a: string; explorerUrl: string }) {
 export function OverviewTab({ r, nav }: { r: Report; nav: Nav }) {
   const hasSource = r.sources.length > 0;
   return (
-    <div className="grid gap-12 lg:grid-cols-2">
-      <div className="space-y-10">
+    <div className="grid gap-12 [overflow-wrap:anywhere] lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+      <div className="min-w-0 space-y-10">
         <section aria-labelledby="ov-contract">
           <h3 id="ov-contract" className="font-display text-xl font-semibold">Contract</h3>
           <dl className="mt-3">
@@ -115,7 +115,7 @@ export function OverviewTab({ r, nav }: { r: Report; nav: Nav }) {
         )}
       </div>
 
-      <div className="space-y-10">
+      <div className="min-w-0 space-y-10">
         <section aria-labelledby="ov-proxy">
           <h3 id="ov-proxy" className="font-display text-xl font-semibold">Proxy and upgradeability</h3>
           {r.proxy.isProxy ? (

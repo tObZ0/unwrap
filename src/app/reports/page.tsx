@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 export default async function ReportsPage() {
   const store = await getStore();
   return (
-    <div className="mx-auto max-w-6xl px-5 py-12">
+    <div className="mx-auto max-w-[1180px] px-5 py-12">
       <h1 className="font-display text-4xl font-bold tracking-tight">Reports</h1>
       <p className="mt-3 max-w-2xl text-fg-2">
         Contracts analysed on this deployment, newest first. This list contains only reports UNWRAP has actually generated here; it is not an index of every contract on a chain.

@@ -131,7 +131,7 @@ export function AskTab({ r, nav, sample }: { r: Report; nav: Nav; sample: boolea
       <div className="mt-6 space-y-5" aria-live="polite">
         {msgs.map((m, i) =>
           m.role === "user" ? (
-            <div key={i} className="ml-auto w-fit max-w-[85%] rounded-lg rounded-br-sm bg-card-2 px-4 py-2.5 text-fg">{m.text}</div>
+            <div key={i} className="ml-auto w-fit max-w-[85%] rounded-lg rounded-br-sm bg-fg px-4 py-2.5 text-card">{m.text}</div>
           ) : m.role === "error" ? (
             <Notice key={i} tone="error">{m.text}</Notice>
           ) : (
@@ -185,7 +185,7 @@ export function AskTab({ r, nav, sample }: { r: Report; nav: Nav; sample: boolea
         }}
       >
         <label htmlFor="ask-input" className="sr-only">Your question about this contract</label>
-        <div className="flex items-end gap-2 rounded-lg border border-line-2 bg-bg-2 p-2">
+        <div className="flex items-end gap-2 rounded-lg border border-line-2 bg-card p-2">
           <textarea
             id="ask-input"
             value={q}
@@ -201,7 +201,7 @@ export function AskTab({ r, nav, sample }: { r: Report; nav: Nav; sample: boolea
             placeholder={disabled ? "AI is not configured" : "Ask about this contract"}
             className="min-h-[44px] flex-1 resize-none bg-transparent px-2 py-1.5 text-[15px] placeholder:text-fg-3 focus:outline-none"
           />
-          <button type="submit" disabled={disabled || busy || q.trim().length < 3} className="inline-flex h-10 items-center gap-1.5 rounded-md bg-accent px-4 text-sm font-medium text-accent-ink disabled:opacity-40" aria-label="Send question">
+          <button type="submit" disabled={disabled || busy || q.trim().length < 3} className="inline-flex h-10 items-center gap-1.5 rounded-md bg-fg px-4 text-sm font-semibold text-card hover:bg-accent disabled:opacity-40" aria-label="Send question">
             <Send size={15} aria-hidden /> Ask
           </button>
         </div>

@@ -1,0 +1,7 @@
+{
+ "note": "Real runtime bytecode of the RiskyToken fixture around the mint(address,uint256) dispatcher entry. Regenerate with scripts if fixtures change.",
+ "selector": "0x40c10f19",
+ "signature": "mint(address,uint256)",
+ "hex": "72dd1161016857806340c10f191161013857806340c10f19",
+ "selectorOffset": 16
+}

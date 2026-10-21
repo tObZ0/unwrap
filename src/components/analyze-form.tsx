@@ -81,9 +81,9 @@ export function AnalyzeForm({ networks, compact = false }: { networks: PublicNet
 
   return (
     <form onSubmit={submit} noValidate aria-describedby={error ? ids.err : undefined} className="w-full">
-      <div className={cx("rounded-lg border border-line-2 bg-card p-2 sm:p-2.5", busy && "opacity-70")}>
-        <div className="flex flex-col gap-2 sm:flex-row">
-          <div className="relative sm:w-56">
+      <div className={cx("rounded-lg border border-line-2 bg-card p-2 shadow-[0_10px_30px_-18px_rgba(17,20,18,0.35)] sm:p-2.5", busy && "opacity-70")}>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div className="relative sm:w-64">
             <label htmlFor={ids.net} className="sr-only">
               Network
             </label>
@@ -97,7 +97,7 @@ export function AnalyzeForm({ networks, compact = false }: { networks: PublicNet
               disabled={busy}
               aria-invalid={Boolean(fieldError.network)}
               className={cx(
-                "h-12 w-full appearance-none rounded-md border bg-bg-2 pl-3 pr-9 text-[15px] text-fg",
+                "h-11 w-full appearance-none rounded-md border bg-card-2 pl-3 pr-9 text-[15px] font-medium text-fg",
                 fieldError.network ? "border-sev-critical/60" : "border-line",
                 !network && "text-fg-2",
               )}
@@ -120,6 +120,15 @@ export function AnalyzeForm({ networks, compact = false }: { networks: PublicNet
             </select>
             <ChevronDown size={16} aria-hidden className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-fg-3" />
           </div>
+          {!compact && (
+            <label className="flex w-fit cursor-pointer items-center gap-2 px-1 text-sm text-fg-2">
+              <input type="checkbox" checked={isPrivate} onChange={(e) => setIsPrivate(e.target.checked)} disabled={busy} className="size-4 accent-[var(--color-fg)]" />
+              <Lock size={14} aria-hidden />
+              Private report
+            </label>
+          )}
+        </div>
+        <div className="mt-2 flex flex-col gap-2 sm:flex-row">
           <label htmlFor={ids.addr} className="sr-only">
             Contract address
           </label>
@@ -134,29 +143,22 @@ export function AnalyzeForm({ networks, compact = false }: { networks: PublicNet
             inputMode="text"
             autoComplete="off"
             spellCheck={false}
-            placeholder="0x… contract address"
+            placeholder="Contract address, 0x…"
             aria-invalid={Boolean(fieldError.address)}
             className={cx(
-              "h-12 min-w-0 flex-1 rounded-md border bg-bg-2 px-3 font-mono text-[14px] text-fg placeholder:font-sans placeholder:text-fg-3",
+              "h-12 w-full min-w-0 rounded-md border bg-card-2 px-3 font-mono text-[14px] text-fg placeholder:font-sans placeholder:text-[15px] placeholder:text-fg-3 sm:flex-1",
               fieldError.address ? "border-sev-critical/60" : "border-line",
             )}
           />
           <button
             type="submit"
             disabled={busy}
-            className="inline-flex h-12 items-center justify-center gap-2 rounded-md bg-accent px-5 font-medium text-accent-ink hover:brightness-110 disabled:cursor-wait"
+            className="inline-flex h-12 shrink-0 items-center justify-center gap-2 rounded-md bg-fg px-5 font-semibold text-card hover:bg-accent disabled:cursor-wait"
           >
             {busy ? <LoaderCircle size={18} className="animate-spin" aria-hidden /> : <ScanSearch size={18} aria-hidden />}
             {busy ? "Analysing" : "Analyse contract"}
           </button>
         </div>
-        {!compact && (
-          <label className="mt-2 flex w-fit cursor-pointer items-center gap-2 px-1 text-sm text-fg-2">
-            <input type="checkbox" checked={isPrivate} onChange={(e) => setIsPrivate(e.target.checked)} disabled={busy} className="size-4 accent-[var(--color-accent)]" />
-            <Lock size={14} aria-hidden />
-            Private report: only this browser can open it
-          </label>
-        )}
       </div>
 
       {(fieldError.network || fieldError.address) && (

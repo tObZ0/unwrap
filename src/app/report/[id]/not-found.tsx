@@ -7,7 +7,7 @@ export default function ReportNotFound() {
       <p className="mt-3 text-fg-2">
         The link may be wrong, the report may be private to the browser that created it, or it was held in a development server&apos;s memory and the server has restarted.
       </p>
-      <Link href="/#analyse" className="mt-6 inline-flex rounded-md bg-accent px-4 py-2 font-medium text-accent-ink">Analyse a contract</Link>
+      <Link href="/#analyse" className="mt-6 inline-flex rounded-md bg-fg px-4 py-2 font-semibold text-card hover:bg-accent">Analyse a contract</Link>
     </div>
   );
 }

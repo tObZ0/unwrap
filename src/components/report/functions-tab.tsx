@@ -33,7 +33,7 @@ export function FunctionsTab({ r, nav, query, setQuery }: { r: Report; nav: Nav;
         <label className="relative flex-1">
           <span className="sr-only">Search functions</span>
           <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-fg-3" aria-hidden />
-          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search by name, selector or capability (e.g. mint, 0x40c1)" className="h-10 w-full rounded-md border border-line bg-bg-2 pl-9 pr-3 text-sm placeholder:text-fg-3" />
+          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search by name, selector or capability (e.g. mint, 0x40c1)" className="h-10 w-full rounded-md border border-line-2 bg-card pl-9 pr-3 text-sm placeholder:text-fg-3" />
         </label>
         <div role="group" aria-label="Filter functions" className="flex gap-1 overflow-x-auto">
           {(["all", "write", "read", "restricted"] as Filter[]).map((f) => (

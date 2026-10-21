@@ -19,7 +19,7 @@ export function PermissionsTab({ r, nav }: { r: Report; nav: Nav }) {
   }
   const open = r.permissions.filter((p) => p.authority.startsWith("anyone"));
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 [overflow-wrap:anywhere]">
       {r.ownership && (
         <Notice tone="info" title="Who holds these powers today">
           {r.ownership.assessment}
