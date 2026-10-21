@@ -14,10 +14,14 @@ export interface ChatMessage {
 export interface AiProvider {
   name: "anthropic" | "openai-compatible";
   model: string;
-  complete(system: string, messages: ChatMessage[], maxTokens: number): Promise<string>;
+  /** `schema` constrains the reply to a JSON Schema where the provider supports it (Anthropic structured outputs). */
+  complete(system: string, messages: ChatMessage[], maxTokens: number, schema?: Record<string, unknown>): Promise<string>;
 }
 
 export const DEFAULT_ANTHROPIC_MODEL = "claude-sonnet-5-5";
+
+/** Models that accept server-side refusal fallbacks in the "default" form on the Claude API. */
+const FALLBACK_MODELS = new Set(["claude-sonnet-5-5", "claude-opus-5-5", "claude-opus-5", "claude-fable-5-1"]);
 
 export function aiConfigStatus(): { configured: boolean; provider: string | null; model: string | null; reason?: string } {
   const key = process.env.AI_API_KEY;
@@ -51,15 +55,26 @@ export function getAiProvider(post: Poster): AiProvider | null {
     return {
       name: "anthropic",
       model,
-      async complete(system, messages, maxTokens) {
+      async complete(system, messages, maxTokens, schema) {
+        // No temperature: current models reject non-default sampling values. Low effort keeps thinking short for Q&A.
+        const outputConfig: Record<string, unknown> = { effort: "low" };
+        if (schema) outputConfig.format = { type: "json_schema", schema };
+        const fallback = FALLBACK_MODELS.has(model);
         const res = await post(
           "https://api.anthropic.com/v1/messages",
-          JSON.stringify({ model, max_tokens: maxTokens, system, messages, temperature: 0 }),
-          { "x-api-key": key, "anthropic-version": "2023-06-01", "content-type": "application/json" },
+          JSON.stringify({ model, max_tokens: maxTokens, system, messages, output_config: outputConfig, ...(fallback ? { fallbacks: "default" } : {}) }),
+          {
+            "x-api-key": key,
+            "anthropic-version": "2023-06-01",
+            "content-type": "application/json",
+            ...(fallback ? { "anthropic-beta": "server-side-fallback-2026-07-01" } : {}),
+          },
           60_000,
         );
         if (!res.ok) fail("anthropic", res.status, res.text);
-        const body = JSON.parse(res.text) as { content?: { type: string; text?: string }[] };
+        const body = JSON.parse(res.text) as { stop_reason?: string; content?: { type: string; text?: string }[] };
+        if (body.stop_reason === "refusal") throw new AppError("AI_FAILED", "The AI declined to answer this question. Try asking about a specific function or permission.");
+        if (body.stop_reason === "max_tokens") throw new AppError("AI_FAILED", "The AI answer was cut off before it finished. Try a narrower question.");
         return (body.content ?? []).filter((b) => b.type === "text").map((b) => b.text ?? "").join("");
       },
     };

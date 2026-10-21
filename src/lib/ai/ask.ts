@@ -27,6 +27,19 @@ export const AiAnswerSchema = z.object({
   caveats: z.array(z.string().max(500)).max(8).default([]),
 });
 
+/** JSON Schema sent to the provider (no length limits: structured outputs do not support them; zod enforces those). */
+const ANSWER_JSON_SCHEMA = {
+  type: "object",
+  properties: {
+    answer: { type: "string" },
+    status: { type: "string", enum: ["answered", "partially_answered", "cannot_determine"] },
+    citations: { type: "array", items: { type: "string" } },
+    caveats: { type: "array", items: { type: "string" } },
+  },
+  required: ["answer", "status", "citations", "caveats"],
+  additionalProperties: false,
+};
+
 export interface AskResult {
   answer: string;
   status: z.infer<typeof AiAnswerSchema>["status"];
@@ -80,6 +93,6 @@ export async function askAboutReport(report: Report, question: string, history: 
     ...history.slice(-6).map((m) => ({ role: m.role, content: m.content.slice(0, 2000) })),
     { role: "user", content: `Question: ${q}` },
   ];
-  const raw = await provider.complete(SYSTEM_PROMPT, messages, 1200);
+  const raw = await provider.complete(SYSTEM_PROMPT, messages, 4000, ANSWER_JSON_SCHEMA);
   return validateAnswer(raw, ctx.refs, provider.model);
 }

@@ -75,6 +75,18 @@ describe("provider configuration", () => {
     expect(seen!.body.system).toBe(SYSTEM_PROMPT);
     expect(JSON.stringify(seen!.body.messages)).not.toContain("sk-test");
     expect(JSON.stringify(seen!.body.messages)).toContain("<contract_data>");
+    // Current models reject non-default sampling values; the answer shape is enforced by structured outputs.
+    expect(seen!.body).not.toHaveProperty("temperature");
+    expect(seen!.body.output_config).toMatchObject({ effort: "low", format: { type: "json_schema", schema: { required: ["answer", "status", "citations", "caveats"] } } });
+    expect(seen!.body.fallbacks).toBe("default");
+    expect(seen!.headers["anthropic-beta"]).toBe("server-side-fallback-2026-07-01");
+  });
+  it("turns refusals and truncated answers into clear errors", async () => {
+    process.env.AI_API_KEY = "sk-test";
+    for (const [stop, msg] of [["refusal", "declined"], ["max_tokens", "cut off"]] as const) {
+      const p = getAiProvider(async () => ({ ok: true, status: 200, text: JSON.stringify({ stop_reason: stop, content: [{ type: "text", text: '{"answer":"' }] }) }))!;
+      await expect(askAboutReport(report, "What does this do?", [], p)).rejects.toMatchObject({ code: "AI_FAILED", message: expect.stringContaining(msg) });
+    }
   });
   it("maps provider auth failures to a clear error", async () => {
     process.env.AI_API_KEY = "bad";
