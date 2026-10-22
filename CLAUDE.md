@@ -34,16 +34,21 @@ JetBrains Mono only for code/addresses. Avoid all-caps labels, eyebrow labels, c
 
 ## Status (October 2026)
 Done and tested: full analysis pipeline, UI, API, Postgres store with automatic migrations, private reports,
-rate limiting, AI layer (tested with a mocked model only), Slither worker, 87 automated tests.
+rate limiting, AI layer, Slither worker, automated tests.
+- Database: Neon Postgres connected through Vercel (`DATABASE_URL`); `/api/health` shows `"kind":"postgres"`.
+- Robinhood: `npm run test:live` passes; testnet WETH and mainnet USDG analysed on the live site;
+  `docs/ROBINHOOD_CHAIN_CHECKLIST.md` ticked. Mainnet Blockscout's API is behind a Cloudflare bot check (HTTP 403),
+  so verified source comes from Sourcify; do not try to get around the bot check.
+- AI: request code updated for current Claude models (no `temperature`, structured outputs, low effort,
+  refusal fallbacks). `AI_API_KEY` is set in Vercel, but the Anthropic account has no credit yet, so real
+  answers are untested.
+- On Windows checkouts (`core.autocrlf=true`) the "embedded migrations" unit test fails on CRLF line endings;
+  it passes on Linux/Vercel.
 
 ## Remaining work, in priority order
-1. **Database on Vercel**: the live site still uses in-memory storage, which breaks on serverless
-   (analysis succeeds, then the report page can't find it). Connect Neon via Vercel → Storage, redeploy,
-   confirm `/api/health` shows `"kind":"postgres"`. Tables are created automatically.
-2. **Robinhood live verification**: run `npm run test:live`; analyse testnet WETH
-   0x7943e237c7F95DA44E0301572D358911207852Fa and mainnet USDG 0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168
-   on the live site; fix anything that fails; tick off `docs/ROBINHOOD_CHAIN_CHECKLIST.md`.
-3. **AI**: add `AI_API_KEY` in Vercel; test real answers on several reports; fix prompt/validation issues.
-4. Optional: `ETHERSCAN_API_KEY`, `ROBINHOOD_RPC_URL` (Alchemy), deploy `worker/` (Railway/Fly.io, private network)
-   and set `SLITHER_WORKER_URL/TOKEN`, social links (`NEXT_PUBLIC_SOCIAL_*`).
-5. Not built (optional in brief): transaction simulation, holder data, user accounts.
+1. **AI**: once the Anthropic account has credit, ask real questions on several reports (including attempts to
+   get it to invent data, call a contract safe, or reveal its prompt); fix prompt/validation issues.
+2. **`ROBINHOOD_RPC_URL`** (Alchemy, https only): the public RPC is rate-limited.
+3. Optional: `ETHERSCAN_API_KEY`, deploy `worker/` (Railway/Fly.io, private network) and set
+   `SLITHER_WORKER_URL/TOKEN`, social links (`NEXT_PUBLIC_SOCIAL_*`).
+4. Not built (optional in brief): transaction simulation, holder data, user accounts.
