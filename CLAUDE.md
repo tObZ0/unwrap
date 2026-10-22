@@ -42,13 +42,13 @@ rate limiting, AI layer, Slither worker, automated tests.
 - AI: request code updated for current Claude models (no `temperature`, structured outputs, low effort,
   refusal fallbacks). `AI_API_KEY` is set in Vercel, but the Anthropic account has no credit yet, so real
   answers are untested.
+- RPC: `ROBINHOOD_RPC_URL` (Alchemy) is set in Vercel; the public RPC remains the fallback.
 - On Windows checkouts (`core.autocrlf=true`) the "embedded migrations" unit test fails on CRLF line endings;
   it passes on Linux/Vercel.
 
 ## Remaining work, in priority order
 1. **AI**: once the Anthropic account has credit, ask real questions on several reports (including attempts to
    get it to invent data, call a contract safe, or reveal its prompt); fix prompt/validation issues.
-2. **`ROBINHOOD_RPC_URL`** (Alchemy, https only): the public RPC is rate-limited.
-3. Optional: `ETHERSCAN_API_KEY`, deploy `worker/` (Railway/Fly.io, private network) and set
+2. Optional: `ETHERSCAN_API_KEY`, deploy `worker/` (Railway/Fly.io, private network) and set
    `SLITHER_WORKER_URL/TOKEN`, social links (`NEXT_PUBLIC_SOCIAL_*`).
-4. Not built (optional in brief): transaction simulation, holder data, user accounts.
+3. Not built (optional in brief): transaction simulation, holder data, user accounts.
