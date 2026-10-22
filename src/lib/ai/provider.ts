@@ -37,12 +37,24 @@ export function aiConfigStatus(): { configured: boolean; provider: string | null
   return { configured: false, provider, model: null, reason: `Unknown AI_PROVIDER "${provider}". Use "anthropic" or "openai".` };
 }
 
+/** The upstream error type and message (e.g. "invalid_request_error: max_tokens: ..."), without the request echo. */
+function upstreamReason(text: string): string {
+  try {
+    const e = (JSON.parse(text) as { error?: { type?: string; message?: string } }).error;
+    return [e?.type, e?.message].filter(Boolean).join(": ").replace(/\s+/g, " ").slice(0, 200);
+  } catch {
+    return "";
+  }
+}
+
 function fail(provider: string, status: number, text: string): never {
-  // Log status only; upstream error bodies can echo request content.
-  console.error(`[unwrap] AI provider ${provider} returned HTTP ${status}`);
-  void text;
+  const reason = upstreamReason(text);
+  console.error(`[unwrap] AI provider ${provider} returned HTTP ${status}${reason ? `: ${reason}` : ""}`);
   if (status === 401 || status === 403) throw new AppError("AI_FAILED", "The AI provider rejected the configured credentials.");
   if (status === 429) throw new AppError("AI_FAILED", "The AI provider is rate-limiting requests. Try again in a minute.");
+  if (/credit balance/i.test(reason)) throw new AppError("AI_FAILED", "The AI provider account has run out of credit. The site owner needs to add credit.");
+  // 400s describe the request's parameters (our configuration), so the reason is safe to show.
+  if (status === 400 && reason) throw new AppError("AI_FAILED", `The AI provider rejected the request (HTTP 400): ${reason}`);
   throw new AppError("AI_FAILED", `The AI provider returned an error (HTTP ${status}).`);
 }
 
